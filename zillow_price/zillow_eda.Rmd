@@ -1,0 +1,124 @@
+# Zillow Price
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+library(data.table)
+library(gridExtra)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(DT)
+library(tidyr)
+library(corrplot)
+library(leaflet)
+library(lubridate)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+properties <- fread("~/Desktop/Kaggle_Competition/Zillow Price/properties_2016.csv")
+transactions <- fread("~/Desktop/Kaggle_Competition/Zillow Price/train_2016_v2.csv")
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+properties <- properties %>% rename(
+  id_parcel = parcelid,
+  build_year = yearbuilt,
+  area_basement = basementsqft,
+  area_patio = yardbuildingsqft17,
+  area_shed = yardbuildingsqft26, 
+  area_pool = poolsizesum,  
+  area_lot = lotsizesquarefeet, 
+  area_garage = garagetotalsqft,
+  area_firstfloor_finished = finishedfloor1squarefeet,
+  area_total_calc = calculatedfinishedsquarefeet,
+  area_base = finishedsquarefeet6,
+  area_live_finished = finishedsquarefeet12,
+  area_liveperi_finished = finishedsquarefeet13,
+  area_total_finished = finishedsquarefeet15,  
+  area_unknown = finishedsquarefeet50,
+  num_unit = unitcnt, 
+  num_story = numberofstories,  
+  num_room = roomcnt,
+  num_bathroom = bathroomcnt,
+  num_bedroom = bedroomcnt,
+  num_bathroom_calc = calculatedbathnbr,
+  num_bath = fullbathcnt,  
+  num_75_bath = threequarterbathnbr, 
+  num_fireplace = fireplacecnt,
+  num_pool = poolcnt,  
+  num_garage = garagecarcnt,  
+  region_county = regionidcounty,
+  region_city = regionidcity,
+  region_zip = regionidzip,
+  region_neighbor = regionidneighborhood,  
+  tax_total = taxvaluedollarcnt,
+  tax_building = structuretaxvaluedollarcnt,
+  tax_land = landtaxvaluedollarcnt,
+  tax_property = taxamount,
+  tax_year = assessmentyear,
+  tax_delinquency = taxdelinquencyflag,
+  tax_delinquency_year = taxdelinquencyyear,
+  zoning_property = propertyzoningdesc,
+  zoning_landuse = propertylandusetypeid,
+  zoning_landuse_county = propertycountylandusecode,
+  flag_fireplace = fireplaceflag, 
+  flag_tub = hashottuborspa,
+  quality = buildingqualitytypeid,
+  framing = buildingclasstypeid,
+  material = typeconstructiontypeid,
+  deck = decktypeid,
+  story = storytypeid,
+  heating = heatingorsystemtypeid,
+  aircon = airconditioningtypeid,
+  architectural_style= architecturalstyletypeid
+)
+transactions <- transactions %>% rename(
+  id_parcel = parcelid,
+  date = transactiondate
+)
+
+properties <- properties %>% 
+  mutate(tax_delinquency = ifelse(tax_delinquency=="Y",1,0),
+         flag_fireplace = ifelse(flag_fireplace=="Y",1,0),
+         flag_tub = ifelse(flag_tub=="Y",1,0))
+```
+
+### Distribution of logerror
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = logerror, data = transactions, binwidth = 0.01) +
+  scale_x_continuous(limits = c(-0.5, 0.5), breaks = seq(-0.5, 0.5, 0.25))
+```
+
+### Distribution of abs logerror
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+transactions <- transactions %>% mutate(abs_logerror = abs(logerror))
+qplot(x = abs_logerror, data = transactions, binwidth = 0.01) +
+  scale_x_continuous(limits = c(0, 0.5), breaks = seq(0, 0.5, 0.25))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+transactions %>% 
+  mutate(year_month = make_date(year=year(date),month=month(date)) ) %>% 
+  group_by(year_month) %>% summarize(mean_abs_logerror = mean(abs_logerror)) %>% 
+  ggplot(aes(x=year_month,y=mean_abs_logerror)) + 
+  geom_line(size=1.5, color="red")+
+  geom_point(size=5, color="red")+theme_bw()
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tmp <- transactions %>% 
+  mutate(year_month = make_date(year=year(date),month=month(date)))
+tmp %>% 
+  group_by(year_month) %>% count() %>% 
+  ggplot(aes(x=year_month,y=n)) +
+  geom_bar(stat="identity", fill="red")+
+  geom_vline(aes(xintercept=as.numeric(as.Date("2016-10-01"))),size=2)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+transactions %>% 
+  mutate(year_month = make_date(year=year(date),month=month(date)) ) %>% 
+  group_by(year_month) %>% summarize(mean_logerror = mean(logerror)) %>% 
+  ggplot(aes(x=year_month,y=mean_logerror)) + 
+  geom_line(size=1.5, color="red")+geom_point(size=5, color="red")+theme_bw()
+```
